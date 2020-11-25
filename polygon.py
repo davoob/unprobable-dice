@@ -175,7 +175,6 @@ class Polygon:
 
     def rotate(self, angle, axis):
         rotation = quat.Quaternion(axis=axis, angle=angle)
-        print(rotation)
         for i, point in enumerate(self.points):
             point = rotation.rotate(point)
             self.points[i] = point
@@ -195,7 +194,6 @@ class Polygon:
         rot_vector = rot_vector / np.linalg.norm(rot_vector)
 
         angle = np.arccos(np.dot(normal, vector))
-        print(normal, vector, angle)
 
         self.rotate(angle, rot_vector)
 
