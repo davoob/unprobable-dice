@@ -4,6 +4,7 @@ import open3d as o3d
 import numpy as np
 import matplotlib.pyplot as plt
 import pychrono.core as chrono
+import pyquaternion as quat
 
 float_precision = 6
 
@@ -171,6 +172,32 @@ class Polygon:
 
         self.recalculate_center()
         self.recalculate_face_centers()
+
+    def rotate(self, angle, axis):
+        rotation = quat.Quaternion(axis=axis, angle=angle)
+        print(rotation)
+        for i, point in enumerate(self.points):
+            point = rotation.rotate(point)
+            self.points[i] = point
+
+        for i, point in enumerate(self.face_center_points):
+            point = rotation.rotate(point)
+            self.face_center_points[i] = point
+
+        self.calculate_face_normals()
+
+    def align_normal_to_vector(self, normal_idx, vector):
+        normal = np.asarray(self.face_normals[normal_idx])
+        vector = np.asarray(vector)
+        vector = vector / np.linalg.norm(vector)
+
+        rot_vector = np.cross(normal, vector)
+        rot_vector = rot_vector / np.linalg.norm(rot_vector)
+
+        angle = np.arccos(np.dot(normal, vector))
+        print(normal, vector, angle)
+
+        self.rotate(angle, rot_vector)
 
     """ methods to get information """
     def get_neighbor_points(self, point_idx):
@@ -658,8 +685,8 @@ if __name__ == '__main__':
     # o3d.visualization.draw_geometries([mesh])
 
     dodeca = create_dodecahedron()
-    dodeca.extend_side(0, 0.5)
-    dodeca.extend_side(1, 0.5)
+    # dodeca.extend_side(0, 0.5)
+    # dodeca.extend_side(1, 0.5)
     # dodeca.show()
 
     # plane_points = [[1, 0, -2], [0, 0, -2], [0, 1, -2],
@@ -672,20 +699,18 @@ if __name__ == '__main__':
     # plane.show()
 
     # print(dodeca.get_parallel_face(7))
-
-    dodeca.calculate_anisotropic_trapping_angle(angle_points=720)
-    dodeca.limit_trapping_ranges_opposite()
-    dodeca.calculate_trapping_areas()
-    dodeca.calculate_probabilities()
+    #
+    # dodeca.calculate_anisotropic_trapping_angle(angle_points=720)
+    # dodeca.limit_trapping_ranges_opposite()
+    # dodeca.calculate_trapping_areas()
+    # dodeca.calculate_probabilities()
     # print(dodeca.trapping_areas.tolist())
 
-    dodeca.show(show_trapping_areas=False, show_markings=True, save=True, save_format='obj')
+    dodeca.show()
 
-    values, probs = dodeca.get_probabilities()
-    plt.plot(values, probs)
-    plt.show()
+    # values, probs = dodeca.get_probabilities()
+    # plt.plot(values, probs)
+    # plt.show()
+    dodeca.align_normal_to_vector(0, [0, 1, 0])
 
-    dodeca.save()
-
-    dodeca2 = Polygon(pickle_file='polygon.pickle')
-    dodeca2.show()
+    dodeca.show()
