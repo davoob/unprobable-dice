@@ -166,7 +166,6 @@ class Polygon:
     """ manipulate polygon methods """
     def move_point(self, point_idx, move_vector, recalculate=True):
         point = self.points[point_idx]
-        print(move_vector, point)
         point += move_vector
 
         if recalculate:
@@ -183,7 +182,7 @@ class Polygon:
 
     def scale_points(self, points_idx, scale_factor, recalculate=True):
         center = get_center(self.points[points_idx])
-        print(center)
+
         for point_idx in points_idx:
             point = self.points[point_idx]
             move_vector = (point - center) * (scale_factor - 1)
@@ -230,7 +229,7 @@ class Polygon:
 
         self.calculate_face_normals()
 
-    def align_normal_to_vector(self, normal_idx, vector):
+    def align_normal_to_vector(self, normal_idx, vector, only_info=False):
         normal = np.asarray(self.face_normals[normal_idx])
         vector = np.asarray(vector)
         vector = vector / np.linalg.norm(vector)
@@ -240,6 +239,8 @@ class Polygon:
 
         angle = np.arccos(np.dot(normal, vector))
 
+        if only_info:
+            return angle, rot_vector
         self.rotate(angle, rot_vector)
 
     """ methods to get information """
@@ -567,7 +568,7 @@ class Polygon:
     def get_points(self):
         if self.number_of_vertices < 3:
             print('not enough points')
-            return False
+            return []
         elif self.number_of_vertices == 3:
             return self.points.tolist()
         else:
@@ -687,7 +688,7 @@ class Polygon:
         all_points = self.get_points()
 
         for i, face in enumerate(self.face_points):
-            triangles = self.get_face_triangles(face, i)
+            triangles = self.faces[i]
             for triangle in triangles:
                 chrono_mesh.addTriangle(chrono.ChVectorD(*all_points[triangle[0]]),
                                         chrono.ChVectorD(*all_points[triangle[1]]),
@@ -757,5 +758,6 @@ if __name__ == '__main__':
     # dodeca.show()
 
     cube = create_cube()
-    cube.scale_face(0, 1.5)
+    cube.align_normal_to_vector(0, [0, 1, 1])
+    print(cube.face_normals)
     cube.show()

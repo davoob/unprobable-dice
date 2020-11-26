@@ -1,13 +1,14 @@
 import sys
 
 import pychrono.core as chrono
+import pychrono
 import pychrono.irrlicht as chronoirr
 from structures.polygon import create_dodecahedron, create_cube, Polygon
 import time
 import numpy as np
 
 
-def get_rotaion_quaternion(angle_x, angle_y, angle_z):
+def get_rotation_quaternion(angle_x, angle_y, angle_z):
     angle_x *= chrono.CH_C_DEG_TO_RAD
     angle_y *= chrono.CH_C_DEG_TO_RAD
     angle_z *= chrono.CH_C_DEG_TO_RAD
@@ -37,9 +38,12 @@ class DiceRoller:
         self.dice_num = 1
 
         self.polygon = None
+        self.normal_rotation_offset = chrono.Q_from_AngAxis(0, chrono.VECT_Z)
         if type(die_file) is Polygon:
             self.polygon = die_file
             self.die_file = self.polygon.get_chrono_mesh()
+            angle, axis = self.polygon.align_normal_to_vector(0, [0, 1, 0], only_info=True)
+            self.normal_rotation_offset = chrono.Q_from_AngAxis(angle, chrono.ChVectorD(*axis))
         else:
             self.die_file = die_file
 
@@ -53,7 +57,13 @@ class DiceRoller:
         self.dice_mat = chrono.ChMaterialSurfaceNSC()
         self.dice_mat.SetFriction(0.5)
 
-        # initialise variables
+        # initialise start parameters
+        self.dice_position = [0, 5, 0]
+        self.dice_speed = [0, 0, 0]
+        self.dice_rotation = [0, 0, 0]
+        self.dice_ang_speed = [0, 0, 0]
+
+        # initialise other variables
         self.system = None
         self.dice = list()
 
@@ -127,21 +137,22 @@ class DiceRoller:
             dice.append(die_body)
         return dice
 
-    def set_start_parameters(self, die):
-        position = 10 * ([2, 1, 2] * np.random.random(3) + [-1, 0.5, -1])
-        rot_angles = 2*np.pi * np.random.random(3)
-        speed = 10 * (2*np.random.random(3)-1)
-        ang_speed = 10 * (2*np.random.random(3)-1)
+    def set_start_parameters(self, die, use_previous=False):
+        if not use_previous:
+            self.dice_position = 10 * ([2, 1, 2] * np.random.random(3) + [-1, 0.5, -1])
+            self.dice_rotation = 360 * np.random.random(3)
+            self.dice_speed = 10 * (2*np.random.random(3)-1)
+            self.dice_ang_speed = 10 * (2*np.random.random(3)-1)
 
-        die.SetPos(chrono.ChVectorD(*position))
-        rotation = get_rotaion_quaternion(*rot_angles)
+        die.SetPos(chrono.ChVectorD(*self.dice_position))
+        rotation = get_rotation_quaternion(*self.dice_rotation)
         die.SetRot(rotation)
 
-        die.SetPos_dt(chrono.ChVectorD(*speed))
-        die.SetWvel_loc(chrono.ChVectorD(*ang_speed))
+        die.SetPos_dt(chrono.ChVectorD(*self.dice_speed))
+        die.SetWvel_loc(chrono.ChVectorD(*self.dice_ang_speed))
 
         die.SetPos_dtdt(chrono.ChVectorD(0, 0, 0))
-        die.SetRot_dtdt(get_rotaion_quaternion(0, 0, 0))
+        die.SetRot_dtdt(get_rotation_quaternion(0, 0, 0))
 
     def run(self):
         # start_t = time.time()
@@ -213,7 +224,7 @@ class DiceRoller:
 
         end_t = time.time()
         duration = end_t - start_t
-        rot = chrono.Q_to_Euler123(self.dice[0].GetRot()) * chrono.CH_C_RAD_TO_DEG
+        rot = chrono.Q_to_Euler123(self.dice[0].GetRot() * self.normal_rotation_offset) * chrono.CH_C_RAD_TO_DEG
         pos = self.dice[0].GetPos()
 
         print(duration, pos, rot)
@@ -226,21 +237,27 @@ class DiceRoller:
             normals = self.polygon.face_normals
 
         up_vector = npvec_to_chvec(normals[0])
+        up_vector = self.normal_rotation_offset.Rotate(up_vector)
+        # print(up_vector)
 
         die = self.dice[die_idx]
-        rotation = die.GetRot()
+        rotation = self.normal_rotation_offset * die.GetRot()
+        # print(die.GetRot().Rotate(up_vector))
+        print(die.GetRot(), get_rotation_quaternion(*self.dice_rotation))
 
         ch_normals = npvecs_to_chvecs(normals)
         dots = []
         for i, ch_normal in enumerate(ch_normals):
             # rotate normal
             ch_normal = rotation.Rotate(ch_normal)
+            # print(ch_normal)
 
             # compare with up_vector
             dot = up_vector ^ ch_normal / (up_vector.Length() * ch_normal.Length())
             dots.append(dot)
             # if round(dot, 1) >= 0.9:
             #     return i
+        # print(dots)
         return np.argmax(np.asarray(dots))
 
 
@@ -257,12 +274,13 @@ if __name__ == '__main__':
     dodecahedron.align_normal_to_vector(0, [0, 1, 0])
 
     cube = create_cube()
-    cube.align_normal_to_vector(0, [0, 1, 0])
+    cube.scale_face(0, 1.0)
+    # cube.align_normal_to_vector(3, [0, 1, 0])
 
-    test_roller = DiceRoller(dodecahedron)
-    print(test_roller.system.Get_G_acc())
+    test_roller = DiceRoller(cube)
+    # print(test_roller.find_up_face_idx())
     # test_roller.run()
     # test_roller.reinitialise_system()
     test_roller.run_visible()
-    print(test_roller.find_up_face_idx())
-    # test_roller.run_multiple(1000)
+    print(test_roller.find_up_face_idx()+1)
+    # test_roller.run_multiple(10000)
