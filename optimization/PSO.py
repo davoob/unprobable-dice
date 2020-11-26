@@ -6,7 +6,7 @@ from multiprocessing import Process, Queue
 from time import sleep
 from scipy.stats import norm
 import matplotlib.pyplot as plt
-from polygon import create_dodecahedron
+from structures.polygon import create_dodecahedron
 
 
 class ParticleSwarmOptimization:

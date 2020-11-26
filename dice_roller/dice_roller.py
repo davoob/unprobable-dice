@@ -2,7 +2,7 @@ import sys
 
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-from polygon import create_dodecahedron, create_cube, Polygon
+from structures.polygon import create_dodecahedron, create_cube, Polygon
 import time
 import numpy as np
 
