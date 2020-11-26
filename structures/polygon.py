@@ -61,7 +61,7 @@ class Polygon:
             self.points = np.asarray([])
             self.center = 0
         else:
-            self.points = np.asarray(points)
+            self.points = np.asarray(points).astype(float)
             self.center = get_center(self.points)
 
         self.number_of_vertices = self.get_number_of_vertices()
@@ -166,6 +166,7 @@ class Polygon:
     """ manipulate polygon methods """
     def move_point(self, point_idx, move_vector, recalculate=True):
         point = self.points[point_idx]
+        print(move_vector, point)
         point += move_vector
 
         if recalculate:
@@ -180,15 +181,20 @@ class Polygon:
             self.recalculate_center()
             self.recalculate_face_centers()
 
-    def scale_points(self, points_idx, scale_factor):
+    def scale_points(self, points_idx, scale_factor, recalculate=True):
         center = get_center(self.points[points_idx])
+        print(center)
         for point_idx in points_idx:
             point = self.points[point_idx]
-            move_vector = (center - point) * scale_factor
+            move_vector = (point - center) * (scale_factor - 1)
             self.move_point(point_idx, move_vector, recalculate=False)
 
-        self.recalculate_center()
-        self.recalculate_face_centers()
+        if recalculate:
+            self.recalculate_center()
+            self.recalculate_face_centers()
+
+    def scale_face(self, face_idx, scale_factor):
+        self.scale_points(self.face_points[face_idx], scale_factor)
 
     def extend_side(self, face_idx, extend_length):
         points = self.face_points[face_idx]
@@ -751,4 +757,5 @@ if __name__ == '__main__':
     # dodeca.show()
 
     cube = create_cube()
+    cube.scale_face(0, 1.5)
     cube.show()

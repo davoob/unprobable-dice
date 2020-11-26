@@ -117,7 +117,7 @@ class DiceRoller:
         # Create falling rigid bodies (spheres and boxes etc.)
         for i in range(self.dice_num):
             die_body = chrono.ChBodyEasyMesh(self.die_file,    # obj filename
-                                             100,               # density
+                                             10000,               # density
                                              True,              # compute mass?
                                              True,              # visualization?
                                              True,              # collision?
