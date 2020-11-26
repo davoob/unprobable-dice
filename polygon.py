@@ -38,6 +38,17 @@ def create_dodecahedron():
     return dodecahedron
 
 
+def create_cube():
+    cube_points = [[1, 1, 1], [1, -1, 1], [-1, -1, 1], [-1, 1, 1], [1, 1, -1], [1, -1, -1], [-1, -1, -1], [-1, 1, -1]]
+    cube_faces = [[3, 2, 1, 0], [1, 5, 4, 0], [0, 4, 7, 3], [4, 5, 6, 7], [3, 7, 6, 2], [2, 6, 5, 1]]
+
+    cube = Polygon(cube_points)
+    cube.add_faces(cube_faces)
+    cube.set_face_values([1, 2, 3, 4, 5, 6])
+
+    return cube
+
+
 class Polygon:
     def __init__(self, points=None, pickle_file=None):
         self.faces = []
@@ -109,20 +120,48 @@ class Polygon:
         self.recalculate_center()
 
     def set_face_values(self, face_values):
-        assert len(face_values) == len(self.faces) == 12
+        value_num = len(face_values)
+        self.face_values = [0] * value_num
+        if value_num == len(self.faces) == 1:
+            self.face_values[0] = face_values[0]
 
-        self.face_values = [0]*12
-        self.face_values[0] = face_values[0]
-        opposite_face = self.get_parallel_face(0)[0]
-        self.face_values[opposite_face] = face_values[-1]
+        elif value_num == len(self.faces) == 6:
+            done = []
 
-        neighboring_faces = self.get_neighbor_face(opposite_face)
-        cur_face_value_idx = 1
-        for neighboring_face in neighboring_faces:
-            self.face_values[neighboring_face] = face_values[cur_face_value_idx]
-            opposite_face = self.get_parallel_face(neighboring_face)[0]
-            self.face_values[opposite_face] = face_values[-cur_face_value_idx-1]
-            cur_face_value_idx += 1
+            self.face_values[0] = face_values[0]
+            done.append(0)
+            opposite_face = self.get_parallel_face(0)[0]
+            self.face_values[opposite_face] = face_values[-1]
+            done.append(opposite_face)
+
+            neighboring_faces = self.get_neighbor_face(opposite_face)
+            cur_face_value_idx = 1
+            for neighboring_face in neighboring_faces:
+                # skip if already done
+                if neighboring_face in done:
+                    continue
+                self.face_values[neighboring_face] = face_values[cur_face_value_idx]
+                done.append(neighboring_face)
+                opposite_face = self.get_parallel_face(neighboring_face)[0]
+                self.face_values[opposite_face] = face_values[-(1+cur_face_value_idx)]
+                done.append(opposite_face)
+                cur_face_value_idx += 1
+
+        elif value_num == len(self.faces) == 12:
+            self.face_values[0] = face_values[0]
+            opposite_face = self.get_parallel_face(0)[0]
+            self.face_values[opposite_face] = face_values[-1]
+
+            neighboring_faces = self.get_neighbor_face(opposite_face)
+            cur_face_value_idx = 1
+            for neighboring_face in neighboring_faces:
+                self.face_values[neighboring_face] = face_values[cur_face_value_idx]
+                opposite_face = self.get_parallel_face(neighboring_face)[0]
+                self.face_values[opposite_face] = face_values[-cur_face_value_idx-1]
+                cur_face_value_idx += 1
+
+        else:
+            print('set_face_values for ' + str(value_num) + ' faces not implemented')
 
     """ manipulate polygon methods """
     def move_point(self, point_idx, move_vector, recalculate=True):
@@ -258,8 +297,6 @@ class Polygon:
         deviations = np.zeros(num_probabilities)
         for i in range(num_probabilities):
             deviations[i] = sorted_probabilities[i] - distribution[i]
-            # if i == 1 or i == 12 or i == 6 or i == 7:
-            #     deviations[i] *= 4
 
         # squared_deviation = np.sum(np.abs(deviations))
         return deviations
@@ -682,7 +719,7 @@ if __name__ == '__main__':
     # print(np.asarray(mesh.triangle_normals))
     # o3d.visualization.draw_geometries([mesh])
 
-    dodeca = create_dodecahedron()
+    # dodeca = create_dodecahedron()
     # dodeca.extend_side(0, 0.5)
     # dodeca.extend_side(1, 0.5)
     # dodeca.show()
@@ -704,11 +741,14 @@ if __name__ == '__main__':
     # dodeca.calculate_probabilities()
     # print(dodeca.trapping_areas.tolist())
 
-    dodeca.show()
+    # dodeca.show()
 
     # values, probs = dodeca.get_probabilities()
     # plt.plot(values, probs)
     # plt.show()
-    dodeca.align_normal_to_vector(0, [0, 1, 0])
+    # dodeca.align_normal_to_vector(0, [0, 1, 0])
 
-    dodeca.show()
+    # dodeca.show()
+
+    cube = create_cube()
+    cube.show()

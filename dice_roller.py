@@ -2,7 +2,7 @@ import sys
 
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-from polygon import create_dodecahedron, Polygon
+from polygon import create_dodecahedron, create_cube, Polygon
 import time
 import numpy as np
 
@@ -29,8 +29,8 @@ def npvecs_to_chvecs(npvecs):
 
 class DiceRoller:
     def __init__(self, die_file='die.obj'):
-        self.container_width = 20
-        self.container_length = 20
+        self.container_width = 30
+        self.container_length = 30
         self.with_walls = True
         self.wall_height = 50
 
@@ -128,7 +128,7 @@ class DiceRoller:
         return dice
 
     def set_start_parameters(self, die):
-        position = 10 * (2*np.random.random(3)-1)
+        position = 10 * ([2, 1, 2] * np.random.random(3) + [-1, 0.5, -1])
         rot_angles = 2*np.pi * np.random.random(3)
         speed = 10 * (2*np.random.random(3)-1)
         ang_speed = 10 * (2*np.random.random(3)-1)
@@ -229,11 +229,14 @@ class DiceRoller:
 
         die = self.dice[die_idx]
         rotation = die.GetRot()
-        up_vector = rotation.Rotate(up_vector)
 
         ch_normals = npvecs_to_chvecs(normals)
         dots = []
         for i, ch_normal in enumerate(ch_normals):
+            # rotate normal
+            ch_normal = rotation.Rotate(ch_normal)
+
+            # compare with up_vector
             dot = up_vector ^ ch_normal / (up_vector.Length() * ch_normal.Length())
             dots.append(dot)
             # if round(dot, 1) >= 0.9:
@@ -252,8 +255,14 @@ def progress_bar(current, total, bar_length=50):
 if __name__ == '__main__':
     dodecahedron = create_dodecahedron()
     dodecahedron.align_normal_to_vector(0, [0, 1, 0])
+
+    cube = create_cube()
+    cube.align_normal_to_vector(0, [0, 1, 0])
+
     test_roller = DiceRoller(dodecahedron)
+    print(test_roller.system.Get_G_acc())
     # test_roller.run()
     # test_roller.reinitialise_system()
-    # test_roller.run_visible()
-    test_roller.run_multiple(1000)
+    test_roller.run_visible()
+    print(test_roller.find_up_face_idx())
+    # test_roller.run_multiple(1000)
