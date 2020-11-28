@@ -1,7 +1,6 @@
 import sys
 
 import pychrono.core as chrono
-import pychrono
 import pychrono.irrlicht as chronoirr
 from structures.polygon import create_dodecahedron, create_cube, Polygon
 import time
@@ -30,8 +29,8 @@ def npvecs_to_chvecs(npvecs):
 
 class DiceRoller:
     def __init__(self, die_file='die.obj'):
-        self.container_width = 30
-        self.container_length = 30
+        self.container_width = 200
+        self.container_length = 200
         self.with_walls = True
         self.wall_height = 50
 
@@ -62,6 +61,8 @@ class DiceRoller:
         self.dice_speed = [0, 0, 0]
         self.dice_rotation = [0, 0, 0]
         self.dice_ang_speed = [0, 0, 0]
+        self.past_start_params = []
+        self.run_results = []
 
         # initialise other variables
         self.system = None
@@ -70,7 +71,7 @@ class DiceRoller:
         # init system
         self.initialise_system()
 
-    def initialise_system(self):
+    def initialise_system(self, use_set_params=False):
         self.system = chrono.ChSystemNSC()
 
         # Modify some setting of the physical system for the simulation, if you want
@@ -78,13 +79,13 @@ class DiceRoller:
         # mysystem.SetSolverMaxIterations(20)
 
         self.add_container()
-        self.dice = self.add_dice()
+        self.dice = self.add_dice(use_set_params)
 
-    def reinitialise_system(self):
+    def reinitialise_system(self, use_set_params=False):
         del self.system
         del self.dice
 
-        self.initialise_system()
+        self.initialise_system(use_set_params)
 
     def add_container(self):
         padding = 10
@@ -121,7 +122,7 @@ class DiceRoller:
             wall_body_4.SetBodyFixed(True)
             self.system.Add(wall_body_4)
 
-    def add_dice(self):
+    def add_dice(self, use_set_params=False):
         dice = list()
 
         # Create falling rigid bodies (spheres and boxes etc.)
@@ -133,14 +134,14 @@ class DiceRoller:
                                              True,              # collision?
                                              self.dice_mat)     # material
             self.system.Add(die_body)
-            self.set_start_parameters(die_body)
+            self.set_start_parameters(die_body, use_set_params)
             dice.append(die_body)
         return dice
 
-    def set_start_parameters(self, die, use_previous=False):
-        if not use_previous:
+    def set_start_parameters(self, die, use_set_params=False):
+        if not use_set_params:
             self.dice_position = 10 * ([2, 1, 2] * np.random.random(3) + [-1, 0.5, -1])
-            self.dice_rotation = 360 * np.random.random(3)
+            self.dice_rotation = 360 * np.random.random(3) + np.asarray([90, 90, 0])
             self.dice_speed = 10 * (2*np.random.random(3)-1)
             self.dice_ang_speed = 10 * (2*np.random.random(3)-1)
 
@@ -154,23 +155,30 @@ class DiceRoller:
         die.SetPos_dtdt(chrono.ChVectorD(0, 0, 0))
         die.SetRot_dtdt(get_rotation_quaternion(0, 0, 0))
 
+        self.past_start_params.append((self.dice_position, self.dice_speed, self.dice_rotation, self.dice_ang_speed))
+
+    def reset_run_history(self):
+        self.past_start_params = []
+
+    def is_settled(self):
+        is_settled = self.dice[0].GetPos_dt().Length() < self.cut_off and \
+                     self.dice[0].GetRot_dt().Length() < self.cut_off and \
+                     self.dice[0].GetPos().y < 2
+        return is_settled
+
     def run(self):
-        # start_t = time.time()
+        start_t = time.time()
         self.system.SetChTime(0)
         while self.system.GetChTime() < 100:
             self.system.DoStepDynamics(0.02)
 
             # break if velocity and rotational velocity is below threshold
-            if self.dice[0].GetPos_dt().Length() < self.cut_off and \
-                    self.dice[0].GetRot_dt().Length() < self.cut_off and \
-                    self.dice[0].GetPos().y < 2:
+            if self.is_settled():
                 break
-        # end_t = time.time()
-        # duration = end_t - start_t
-        # rot = chrono.Q_to_Euler123(self.dice[0].GetRot()) * chrono.CH_C_RAD_TO_DEG
-        # pos = self.dice[0].GetPos()
+        end_t = time.time()
+        duration = end_t - start_t
 
-        # print(duration, pos, rot)
+        self.post_run(duration)
 
     def run_multiple(self, num_sim):
         start_t = time.time()
@@ -190,10 +198,10 @@ class DiceRoller:
         duration = end_t - start_t
         print(duration)
         counts /= np.sum(counts)
-        print(counts)
+        print(counts, self.polygon.face_values)
         mean = 0
         for i, count in enumerate(counts):
-            mean += count * (i+1)
+            mean += count * self.polygon.face_values[i]
         print(mean)
 
     def run_visible(self):
@@ -217,17 +225,45 @@ class DiceRoller:
             visible_sim.EndScene()
 
             # break if velocity and rotational velocity is below threshold
-            if self.dice[0].GetPos_dt().Length() < self.cut_off and \
-                    self.dice[0].GetRot_dt().Length() < self.cut_off and \
-                    self.dice[0].GetPos().y < 2:
+            if self.is_settled():
                 break
 
         end_t = time.time()
         duration = end_t - start_t
-        rot = chrono.Q_to_Euler123(self.dice[0].GetRot() * self.normal_rotation_offset) * chrono.CH_C_RAD_TO_DEG
-        pos = self.dice[0].GetPos()
 
-        print(duration, pos, rot)
+        self.post_run(duration, silent=False)
+
+    def post_run(self, duration, silent=True):
+        pos = self.dice[0].GetPos()
+        vel = self.dice[0].GetPos_dt()
+        rot = chrono.Q_to_Euler123(self.dice[0].GetRot() * self.normal_rotation_offset) * chrono.CH_C_RAD_TO_DEG
+        ang_vel = self.dice[0].GetWvel_loc()
+
+        up_side = self.find_up_face_idx()
+        up_value = -1
+        if up_side != -1:
+            up_value = self.polygon.face_values[up_side]
+        result = (pos, vel, rot, ang_vel, up_value)
+
+        self.run_results.append(result)
+        if not silent:
+            print(duration, pos, rot)
+
+    def show_run(self, run_idx):
+        run_params = self.past_start_params[run_idx]
+
+        # setup parameters from past run
+        self.dice_position = run_params[0]
+        self.dice_speed = run_params[1]
+        self.dice_rotation = run_params[2]
+        self.dice_ang_speed = run_params[3]
+
+        self.reinitialise_system(use_set_params=True)
+        self.run_visible()
+
+    def find_in_past_runs(self, value):
+        runs_idx = [i for i, item in enumerate(self.run_results) if item[4] == value]
+        return runs_idx
 
     def find_up_face_idx(self, normals=None, die_idx=0):
         if normals is None:
@@ -238,25 +274,22 @@ class DiceRoller:
 
         up_vector = npvec_to_chvec(normals[0])
         up_vector = self.normal_rotation_offset.Rotate(up_vector)
-        # print(up_vector)
 
         die = self.dice[die_idx]
-        rotation = self.normal_rotation_offset * die.GetRot()
-        # print(die.GetRot().Rotate(up_vector))
-        print(die.GetRot(), get_rotation_quaternion(*self.dice_rotation))
+        rotation = die.GetRot()
 
         ch_normals = npvecs_to_chvecs(normals)
         dots = []
         for i, ch_normal in enumerate(ch_normals):
             # rotate normal
+            ch_normal = self.normal_rotation_offset.Rotate(ch_normal)
             ch_normal = rotation.Rotate(ch_normal)
-            # print(ch_normal)
 
             # compare with up_vector
             dot = up_vector ^ ch_normal / (up_vector.Length() * ch_normal.Length())
             dots.append(dot)
-            # if round(dot, 1) >= 0.9:
-            #     return i
+            if round(dot, 1) == 1:
+                return i
         # print(dots)
         return np.argmax(np.asarray(dots))
 
@@ -271,16 +304,25 @@ def progress_bar(current, total, bar_length=50):
 
 if __name__ == '__main__':
     dodecahedron = create_dodecahedron()
-    dodecahedron.align_normal_to_vector(0, [0, 1, 0])
+    # dodecahedron.align_normal_to_vector(0, [0, 1, 0])
 
     cube = create_cube()
-    cube.scale_face(0, 1.0)
+    # cube.scale_face(0, 1.0)
     # cube.align_normal_to_vector(3, [0, 1, 0])
 
-    test_roller = DiceRoller(cube)
+    test_roller = DiceRoller(dodecahedron)
     # print(test_roller.find_up_face_idx())
     # test_roller.run()
     # test_roller.reinitialise_system()
-    test_roller.run_visible()
-    print(test_roller.find_up_face_idx()+1)
-    # test_roller.run_multiple(10000)
+    # test_roller.run_visible()
+    # print(test_roller.find_up_face_idx()+1)
+    test_roller.run_multiple(500)
+    runs_with_1 = test_roller.find_in_past_runs(value=1)
+    print(len(runs_with_1), runs_with_1)
+    runs_with_2 = test_roller.find_in_past_runs(value=2)
+    print(len(runs_with_2), runs_with_2)
+    runs_with_12 = test_roller.find_in_past_runs(value=12)
+    print(len(runs_with_12), runs_with_12)
+    test_roller.show_run(runs_with_1[0])
+    test_roller.show_run(runs_with_1[1])
+    test_roller.show_run(runs_with_1[2])
