@@ -5,6 +5,7 @@ import pychrono.irrlicht as chronoirr
 from structures.polygon import create_dodecahedron, create_cube, Polygon
 import time
 import numpy as np
+import random
 
 
 def get_rotation_quaternion(angle_x, angle_y, angle_z):
@@ -13,6 +14,40 @@ def get_rotation_quaternion(angle_x, angle_y, angle_z):
     angle_z *= chrono.CH_C_DEG_TO_RAD
     rotation = chrono.Q_from_Euler123(chrono.ChVectorD(angle_x, angle_y, angle_z))
     return rotation
+
+
+def vect_to_rotation(vector):
+    normal = np.asarray([0, 1, 0])
+    if (vector == normal).all():
+        rotation = chrono.Q_from_AngAxis(0, chrono.ChVectorD(*normal))
+    else:
+        rot_vector = np.cross(normal, vector)
+        rot_vector = rot_vector / np.linalg.norm(rot_vector)
+
+        angle = np.arccos(np.dot(normal, vector))
+
+        rotation = chrono.Q_from_AngAxis(angle, chrono.ChVectorD(*rot_vector))
+    return rotation
+
+
+def get_random_rotation():
+    rand_vector = get_random_vector(r=1)
+    rotation = vect_to_rotation(rand_vector)
+    return rotation
+
+
+def get_random_vector(r=0):
+    if r == 0:
+        r = np.cbrt(random.random())
+    cos_theta = random.random() * 2 - 1
+    theta = np.arccos(cos_theta)
+    # theta = random.random() * np.pi
+    phi = random.random() * 2 * np.pi
+    z = random.random() * 2 - 1
+    rand_vector_sphaeric = r * np.asarray([np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)])
+    rand_vector_cylindric = np.asarray([np.sqrt(1-z**2) * np.cos(phi), np.sqrt(1-z**2) * np.sin(phi), z])
+
+    return rand_vector_sphaeric
 
 
 def npvec_to_chvec(npvec):
@@ -81,6 +116,10 @@ class DiceRoller:
         self.add_container()
         self.dice = self.add_dice(use_set_params)
 
+        # adding start up facing side to past_start_params
+        start_most_up_side_idx = self.find_up_face_idx()
+        self.past_start_params[-1] += (start_most_up_side_idx,)
+
     def reinitialise_system(self, use_set_params=False):
         del self.system
         del self.dice
@@ -141,16 +180,17 @@ class DiceRoller:
     def set_start_parameters(self, die, use_set_params=False):
         if not use_set_params:
             self.dice_position = 10 * ([2, 1, 2] * np.random.random(3) + [-1, 0.5, -1])
-            self.dice_rotation = 360 * np.random.random(3) + np.asarray([90, 90, 0])
-            self.dice_speed = 10 * (2*np.random.random(3)-1)
-            self.dice_ang_speed = 10 * (2*np.random.random(3)-1)
+            self.dice_rotation = get_random_rotation()  # 360 * np.random.random(3)
+            self.dice_speed = 10 * get_random_vector()
+            self.dice_ang_speed = 10 * get_random_vector()
 
         die.SetPos(chrono.ChVectorD(*self.dice_position))
-        rotation = get_rotation_quaternion(*self.dice_rotation)
-        die.SetRot(rotation)
+        # rotation = get_rotation_quaternion(*self.dice_rotation)
+        die.SetRot(self.dice_rotation)
 
         die.SetPos_dt(chrono.ChVectorD(*self.dice_speed))
-        die.SetWvel_loc(chrono.ChVectorD(*self.dice_ang_speed))
+        # die.SetRot_dt(self.dice_ang_speed)
+        # die.SetWvel_loc(chrono.ChVectorD(*self.dice_ang_speed))
 
         die.SetPos_dtdt(chrono.ChVectorD(0, 0, 0))
         die.SetRot_dtdt(get_rotation_quaternion(0, 0, 0))
@@ -182,7 +222,10 @@ class DiceRoller:
 
     def run_multiple(self, num_sim):
         start_t = time.time()
-        counts = [0]*12
+        if self.polygon:
+            counts = [0]*len(self.polygon.face_values)
+        else:
+            counts = [0]*12
         progress_bar(0, num_sim-1)
         for i in range(num_sim):
             self.run()
@@ -316,13 +359,19 @@ if __name__ == '__main__':
     # test_roller.reinitialise_system()
     # test_roller.run_visible()
     # print(test_roller.find_up_face_idx()+1)
-    test_roller.run_multiple(500)
-    runs_with_1 = test_roller.find_in_past_runs(value=1)
-    print(len(runs_with_1), runs_with_1)
-    runs_with_2 = test_roller.find_in_past_runs(value=2)
-    print(len(runs_with_2), runs_with_2)
-    runs_with_12 = test_roller.find_in_past_runs(value=12)
-    print(len(runs_with_12), runs_with_12)
-    test_roller.show_run(runs_with_1[0])
-    test_roller.show_run(runs_with_1[1])
-    test_roller.show_run(runs_with_1[2])
+    test_roller.run_multiple(1000)
+
+    start_values = [test_roller.polygon.face_values[item[-1]] for item in test_roller.past_start_params]
+    value_probs = [start_values.count(item) for item in range(1, len(test_roller.polygon.face_values) + 1)]
+    value_probs = np.asarray(value_probs) / len(start_values)
+    print(value_probs.round(3))
+
+    # runs_with_1 = test_roller.find_in_past_runs(value=1)
+    # print(len(runs_with_1), runs_with_1)
+    # runs_with_2 = test_roller.find_in_past_runs(value=2)
+    # print(len(runs_with_2), runs_with_2)
+    # runs_with_12 = test_roller.find_in_past_runs(value=12)
+    # print(len(runs_with_12), runs_with_12)
+    # test_roller.show_run(runs_with_1[0])
+    # test_roller.show_run(runs_with_1[1])
+    # test_roller.show_run(runs_with_1[2])
