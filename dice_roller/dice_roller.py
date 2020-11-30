@@ -179,10 +179,10 @@ class DiceRoller:
 
     def set_start_parameters(self, die, use_set_params=False):
         if not use_set_params:
-            self.dice_position = 10 * ([2, 1, 2] * np.random.random(3) + [-1, 0.5, -1])
+            # self.dice_position = 10 * ([2, 1, 2] * np.random.random(3) + [-1, 0.5, -1])
             self.dice_rotation = get_random_rotation()  # 360 * np.random.random(3)
-            self.dice_speed = 10 * get_random_vector()
-            self.dice_ang_speed = 10 * get_random_vector()
+            # self.dice_speed = 10 * get_random_vector()
+            # self.dice_ang_speed = 10 * get_random_vector()
 
         die.SetPos(chrono.ChVectorD(*self.dice_position))
         # rotation = get_rotation_quaternion(*self.dice_rotation)
@@ -210,7 +210,7 @@ class DiceRoller:
         start_t = time.time()
         self.system.SetChTime(0)
         while self.system.GetChTime() < 100:
-            self.system.DoStepDynamics(0.02)
+            self.system.DoStepDynamics(0.001)
 
             # break if velocity and rotational velocity is below threshold
             if self.is_settled():
@@ -226,7 +226,7 @@ class DiceRoller:
             counts = [0]*len(self.polygon.face_values)
         else:
             counts = [0]*12
-        progress_bar(0, num_sim-1)
+        progress_bar(0, num_sim)
         for i in range(num_sim):
             self.run()
             face_idx = self.find_up_face_idx()
@@ -235,7 +235,7 @@ class DiceRoller:
             else:
                 counts[face_idx] += 1
             self.reinitialise_system()
-            progress_bar(i, num_sim-1)
+            progress_bar(i+1, num_sim)
         print('\n')
         end_t = time.time()
         duration = end_t - start_t
@@ -359,7 +359,7 @@ if __name__ == '__main__':
     # test_roller.reinitialise_system()
     # test_roller.run_visible()
     # print(test_roller.find_up_face_idx()+1)
-    test_roller.run_multiple(1000)
+    test_roller.run_multiple(100)
 
     start_values = [test_roller.polygon.face_values[item[-1]] for item in test_roller.past_start_params]
     value_probs = [start_values.count(item) for item in range(1, len(test_roller.polygon.face_values) + 1)]
