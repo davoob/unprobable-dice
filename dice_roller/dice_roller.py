@@ -164,7 +164,7 @@ class DiceRoller:
     def add_dice(self, use_set_params=False):
         dice = list()
 
-        # Create falling rigid bodies (spheres and boxes etc.)
+        # Create falling rigid bodies (dice)
         for i in range(self.dice_num):
             die_body = chrono.ChBodyEasyMesh(self.die_file,    # obj filename
                                              10000,               # density
