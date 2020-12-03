@@ -30,6 +30,10 @@ def vect_to_rotation(vector):
     return rotation
 
 
+def rotation_to_vect(rotation):
+    normal = np.asarray([0, 1, 0])
+
+
 def get_random_rotation():
     rand_vector = get_random_vector(r=1)
     rotation = vect_to_rotation(rand_vector)
@@ -94,7 +98,7 @@ class DiceRoller:
         # initialise start parameters
         self.dice_position = [0, 5, 0]
         self.dice_speed = [0, 0, 0]
-        self.dice_rotation = [0, 0, 0]
+        self.dice_rotation = chrono.Q_from_AngAxis(30 * chrono.CH_C_DEG_TO_RAD, chrono.VECT_Z)
         self.dice_ang_speed = [0, 0, 0]
         self.past_start_params = []
         self.run_results = []
@@ -117,8 +121,17 @@ class DiceRoller:
         self.dice = self.add_dice(use_set_params)
 
         # adding start up facing side to past_start_params
-        start_most_up_side_idx = self.find_up_face_idx()
-        self.past_start_params[-1] += (start_most_up_side_idx,)
+        start_most_up_side_idx, how_much = self.find_up_face_idx()
+
+        if round(how_much, 1) == 1.0:
+            how_much = 0
+        else:
+            how_much = 1
+        try:
+            how_much += self.past_start_params[-2][-1]
+        except IndexError:
+            pass
+        self.past_start_params[-1] += (start_most_up_side_idx, how_much)
 
     def reinitialise_system(self, use_set_params=False):
         del self.system
@@ -178,9 +191,9 @@ class DiceRoller:
         return dice
 
     def set_start_parameters(self, die, use_set_params=False):
-        if not use_set_params:
+        # if not use_set_params:
             # self.dice_position = 10 * ([2, 1, 2] * np.random.random(3) + [-1, 0.5, -1])
-            self.dice_rotation = get_random_rotation()  # 360 * np.random.random(3)
+            # self.dice_rotation = get_random_rotation()  # 360 * np.random.random(3)
             # self.dice_speed = 10 * get_random_vector()
             # self.dice_ang_speed = 10 * get_random_vector()
 
@@ -193,7 +206,7 @@ class DiceRoller:
         # die.SetWvel_loc(chrono.ChVectorD(*self.dice_ang_speed))
 
         die.SetPos_dtdt(chrono.ChVectorD(0, 0, 0))
-        die.SetRot_dtdt(get_rotation_quaternion(0, 0, 0))
+        # die.SetRot_dtdt(get_rotation_quaternion(0, 0, 0))
 
         self.past_start_params.append((self.dice_position, self.dice_speed, self.dice_rotation, self.dice_ang_speed))
 
@@ -210,7 +223,7 @@ class DiceRoller:
         start_t = time.time()
         self.system.SetChTime(0)
         while self.system.GetChTime() < 100:
-            self.system.DoStepDynamics(0.001)
+            self.system.DoStepDynamics(0.02)
 
             # break if velocity and rotational velocity is below threshold
             if self.is_settled():
@@ -226,14 +239,17 @@ class DiceRoller:
             counts = [0]*len(self.polygon.face_values)
         else:
             counts = [0]*12
+        problematic_count = 0
         progress_bar(0, num_sim)
         for i in range(num_sim):
             self.run()
-            face_idx = self.find_up_face_idx()
+            face_idx, how_much = self.find_up_face_idx()
             if face_idx == -1:
                 print('no result')
             else:
                 counts[face_idx] += 1
+                if round(how_much, 1) < 1.0:
+                    problematic_count += 1
             self.reinitialise_system()
             progress_bar(i+1, num_sim)
         print('\n')
@@ -246,6 +262,7 @@ class DiceRoller:
         for i, count in enumerate(counts):
             mean += count * self.polygon.face_values[i]
         print(mean)
+        print(problematic_count / num_sim)
 
     def run_visible(self):
         visible_sim = chronoirr.ChIrrApp(self.system, 'Falling', chronoirr.dimension2du(1024, 768))
@@ -282,7 +299,7 @@ class DiceRoller:
         rot = chrono.Q_to_Euler123(self.dice[0].GetRot() * self.normal_rotation_offset) * chrono.CH_C_RAD_TO_DEG
         ang_vel = self.dice[0].GetWvel_loc()
 
-        up_side = self.find_up_face_idx()
+        up_side, how_much = self.find_up_face_idx()
         up_value = -1
         if up_side != -1:
             up_value = self.polygon.face_values[up_side]
@@ -290,7 +307,7 @@ class DiceRoller:
 
         self.run_results.append(result)
         if not silent:
-            print(duration, pos, rot)
+            print(duration, pos, rot, up_value, how_much)
 
     def show_run(self, run_idx):
         run_params = self.past_start_params[run_idx]
@@ -331,10 +348,10 @@ class DiceRoller:
             # compare with up_vector
             dot = up_vector ^ ch_normal / (up_vector.Length() * ch_normal.Length())
             dots.append(dot)
-            if round(dot, 1) == 1:
-                return i
+            # if round(dot, 1) == 1:
+            #     return i
         # print(dots)
-        return np.argmax(np.asarray(dots))
+        return np.argmax(np.asarray(dots)), np.max(dots)
 
 
 def progress_bar(current, total, bar_length=50):
@@ -357,14 +374,14 @@ if __name__ == '__main__':
     # print(test_roller.find_up_face_idx())
     # test_roller.run()
     # test_roller.reinitialise_system()
-    # test_roller.run_visible()
-    # print(test_roller.find_up_face_idx()+1)
-    test_roller.run_multiple(100)
+    test_roller.run_visible()
+    # test_roller.run_multiple(100)
 
-    start_values = [test_roller.polygon.face_values[item[-1]] for item in test_roller.past_start_params]
+    start_values = [test_roller.polygon.face_values[item[-2]] for item in test_roller.past_start_params]
     value_probs = [start_values.count(item) for item in range(1, len(test_roller.polygon.face_values) + 1)]
     value_probs = np.asarray(value_probs) / len(start_values)
     print(value_probs.round(3))
+    print(test_roller.past_start_params[-1][-1])
 
     # runs_with_1 = test_roller.find_in_past_runs(value=1)
     # print(len(runs_with_1), runs_with_1)
