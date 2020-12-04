@@ -60,7 +60,8 @@ def npvecs_to_chvecs(npvecs):
 
 
 dodeca = create_dodecahedron()
-# dodeca.extend_side(0, 0.5)
+dodeca.extend_side(0, 0.5)
+dodeca.extend_side(4, 1.1)
 # dodeca.align_normal_to_vector(4, [0, 0, 1])
 cut_off = 0.00001
 run_visible = True
@@ -93,7 +94,7 @@ system.Add(die)
 
 dice_position = [0, 5, 0]
 dice_speed = [0, 0, 0]
-dice_rotation = chrono.Q_from_AngAxis(-0 * chrono.CH_C_DEG_TO_RAD, chrono.VECT_Y) * chrono.Q_from_AngAxis(-117 * chrono.CH_C_DEG_TO_RAD, chrono.VECT_Z)
+dice_rotation = chrono.Q_from_AngAxis(-0 * chrono.CH_C_DEG_TO_RAD, chrono.VECT_Y) * chrono.Q_from_AngAxis(-91 * chrono.CH_C_DEG_TO_RAD, chrono.VECT_Z)
 print(dice_rotation, chrono.Q_to_Euler123(dice_rotation) * chrono.CH_C_RAD_TO_DEG)
 normals = dodeca.face_normals
 for normal in normals:
