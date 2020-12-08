@@ -686,6 +686,7 @@ class Polygon:
     def get_chrono_mesh(self):
         chrono_mesh = chrono.ChTriangleMeshConnected()
         all_points = self.get_points()
+        ch_normals = []
 
         for i, face in enumerate(self.face_points):
             triangles = self.faces[i]
@@ -693,6 +694,8 @@ class Polygon:
                 chrono_mesh.addTriangle(chrono.ChVectorD(*all_points[triangle[0]]),
                                         chrono.ChVectorD(*all_points[triangle[1]]),
                                         chrono.ChVectorD(*all_points[triangle[2]]))
+            ch_normal = chrono.ChVectorD(*self.face_normals[i])
+            ch_normals.append(ch_normal)
 
         chrono_mesh.RepairDuplicateVertexes()
         return chrono_mesh

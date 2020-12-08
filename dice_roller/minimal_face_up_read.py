@@ -60,8 +60,8 @@ def npvecs_to_chvecs(npvecs):
 
 
 dodeca = create_dodecahedron()
-dodeca.extend_side(0, 0.5)
-dodeca.extend_side(4, 1.1)
+dodeca.extend_side(0, 0.1)
+# dodeca.extend_side(4, 1.1)
 # dodeca.align_normal_to_vector(4, [0, 0, 1])
 cut_off = 0.00001
 run_visible = True
