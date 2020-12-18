@@ -1,8 +1,11 @@
+import random
+import time
+
+import numpy as np
 import pychrono.core as chrono
 import pychrono.irrlicht as chronoirr
-import numpy as np
+
 from structures.polygon import create_dodecahedron
-import random, time
 
 
 def get_rotation_quaternion(angle_x, angle_y, angle_z):
@@ -75,7 +78,7 @@ dice_mat = chrono.ChMaterialSurfaceNSC()
 dice_mat.SetFriction(0.5)
 
 # Create the five walls of the rectangular container, using fixed rigid bodies of 'box' type
-floor_body = chrono.ChBodyEasyBox(50, 1, 50, 1000, True, True, ground_mat)
+floor_body = chrono.ChBodyEasyBox(210, 1, 210, 1000, True, True, ground_mat)
 floor_body.SetPos(chrono.ChVectorD(0, 0, 0))
 floor_body.SetBodyFixed(True)
 system.Add(floor_body)
