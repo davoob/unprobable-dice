@@ -63,7 +63,10 @@ def npvecs_to_chvecs(npvecs):
 
 
 dodeca = create_dodecahedron()
-cut_off = 0.0001
+dodeca.extend_side(0, 0.1)
+# dodeca.extend_side(4, 1.1)
+# dodeca.align_normal_to_vector(4, [0, 0, 1])
+cut_off = 0.00001
 run_visible = True
 
 system = chrono.ChSystemNSC()
@@ -94,7 +97,17 @@ system.Add(die)
 
 dice_position = [0, 5, 0]
 dice_speed = [0, 0, 0]
-dice_rotation = chrono.ChQuaternionD(0, 1, 0, 0)
+dice_rotation = chrono.Q_from_AngAxis(-0 * chrono.CH_C_DEG_TO_RAD, chrono.VECT_Y) * chrono.Q_from_AngAxis(-91 * chrono.CH_C_DEG_TO_RAD, chrono.VECT_Z)
+print(dice_rotation, chrono.Q_to_Euler123(dice_rotation) * chrono.CH_C_RAD_TO_DEG)
+normals = dodeca.face_normals
+for normal in normals:
+    ch_normal = chrono.ChVectorD(*normal)
+    ch_normal = dice_rotation.Rotate(ch_normal)
+
+    if round(ch_normal ^ chrono.VECT_X, 1) == 1 or round(ch_normal ^ chrono.VECT_Y, 1) == 1 or round(ch_normal ^ chrono.VECT_Z, 1) == 1:
+        print(ch_normal)
+
+
 dice_ang_speed = [0, 0, 0]
 # self.dice_position = 10 * ([2, 1, 2] * np.random.random(3) + [-1, 0.5, -1])
 # dice_rotation = get_random_rotation()  # 360 * np.random.random(3)
@@ -105,15 +118,14 @@ die.SetPos(chrono.ChVectorD(*dice_position))
 # rotation = get_rotation_quaternion(*self.dice_rotation)
 die.SetRot(dice_rotation)
 
-die.SetPos_dt(chrono.ChVectorD(*dice_speed))
+# die.SetPos_dt(chrono.ChVectorD(*dice_speed))
 # die.SetRot_dt(self.dice_ang_speed)
 # die.SetWvel_loc(chrono.ChVectorD(*self.dice_ang_speed))
 
-die.SetPos_dtdt(chrono.ChVectorD(0, 0, 0))
-die.SetRot_dtdt(get_rotation_quaternion(0, 0, 0))
+# die.SetPos_dtdt(chrono.ChVectorD(0, 0, 0))
+# die.SetRot_dtdt(get_rotation_quaternion(0, 0, 0))
 
 start_t = time.time()
-
 if not run_visible:
     system.SetChTime(0)
     while system.GetChTime() < 100:
@@ -139,6 +151,7 @@ else:
         visible_sim.BeginScene()
         visible_sim.DrawAll()
         visible_sim.DoStep()
+        visible_sim.EndScene()
 
         # break if velocity and rotational velocity is below threshold
         if die.GetPos_dt().Length() < cut_off and die.GetRot_dt().Length() < cut_off and die.GetPos().y < 2:
@@ -148,7 +161,7 @@ duration = end_t - start_t
 
 pos = die.GetPos()
 vel = die.GetPos_dt()
-rot = chrono.Q_to_Euler123(die.GetRot()) * chrono.CH_C_RAD_TO_DEG
+rot = die.GetRot()
 ang_vel = die.GetWvel_loc()
 
-print(duration, pos, vel, rot, ang_vel)
+print(rot, chrono.Q_to_Euler123(rot) * chrono.CH_C_RAD_TO_DEG)
