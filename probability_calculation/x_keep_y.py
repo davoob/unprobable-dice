@@ -124,7 +124,12 @@ def get_prob_smaller_min_one_equal(dice_num, x, values, probs):
 values = np.array([-3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8]) + 4
 probs = [1/12]*12
 
-probabilities = n_keep_k_highest(5, 3, values, probs)
+uneven_vals_probs = np.loadtxt('distribution.txt')
+uneven_values = uneven_vals_probs[:, 0]
+uneven_probs = uneven_vals_probs[:, 1]
+print(uneven_values, uneven_probs)
+
+probabilities = n_keep_k_highest(3, 1, uneven_values, uneven_probs)
 
 mean = 0
 for sum, prob in probabilities.items():
