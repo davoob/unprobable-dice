@@ -42,7 +42,7 @@ def n_keep_k_highest(n, k, values, probs):
     probs = np.asarray(probs)
     result = {}
     value_num = len(values)
-    sum_combination_perms = list(itertools.product(range(value_num), repeat=k))
+    # sum_combination_perms = list(itertools.product(range(value_num), repeat=k))
     sum_combination_perms = list(itertools.combinations_with_replacement(range(value_num), k))
 
     for perm in sum_combination_perms:
@@ -50,17 +50,26 @@ def n_keep_k_highest(n, k, values, probs):
         num_dice_equals_min = 0
         cur_sum = 0
         cur_prob = 1
+        num_each_value = {}
         for i in perm:
             cur_sum += values[i]
             if values[i] == min_value:
                 num_dice_equals_min += 1
             else:
                 cur_prob *= probs[i]
+                if values[i] in num_each_value.keys():
+                    num_each_value[values[i]] += 1
+                else:
+                    num_each_value[values[i]] = 1
 
         prob_rest_dice = get_prob_smaller_than(n-k+num_dice_equals_min, values[min(perm)], values, probs, num_equal_dice=num_dice_equals_min)
-        num_poss_keep_dice = scipy.special.binom(n, k-num_dice_equals_min)
+        num_poss_keep_dice = 1  # scipy.special.binom(n, k-num_dice_equals_min)
+        drawn = 0
+        for value in num_each_value.keys():
+            num_poss_keep_dice *= scipy.special.binom(n - drawn, num_each_value[value])
+            drawn += num_each_value[value]
         total_prob = cur_prob * prob_rest_dice * num_poss_keep_dice
-        print(perm, values[list(perm)], min_value, cur_sum, cur_prob, prob_rest_dice, num_poss_keep_dice, num_dice_equals_min)
+        # print(perm, values[list(perm)], cur_prob, prob_rest_dice, num_poss_keep_dice, num_each_value, num_dice_equals_min)
 
         if cur_sum in result.keys():
             result[cur_sum] += total_prob
@@ -89,7 +98,7 @@ def get_prob_smaller_than(dice_num, value, values, probs, also_equals=True, num_
             num_poss_i_equals = scipy.special.binom(dice_num, i)
             prob_all_lower_except_i = prob_n_i_lower * prob_i_equals * num_poss_i_equals
             prob_all_lower -= prob_all_lower_except_i
-            print(dice_num, i, prob_all_lower_except_i, prob_n_i_lower, prob_i_equals, num_poss_i_equals)
+            # print(dice_num, i, prob_all_lower_except_i, prob_n_i_lower, prob_i_equals, num_poss_i_equals)
 
     return prob_all_lower
 
@@ -115,7 +124,7 @@ def get_prob_smaller_min_one_equal(dice_num, x, values, probs):
 values = np.array([-3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8]) + 4
 probs = [1/12]*12
 
-probabilities = n_keep_k_highest(4, 2, values, probs)
+probabilities = n_keep_k_highest(5, 3, values, probs)
 
 mean = 0
 for sum, prob in probabilities.items():
@@ -124,3 +133,4 @@ print(np.sum(list(probabilities.values())), mean, probabilities)
 
 plt.plot(probabilities.keys(), probabilities.values())
 plt.show()
+
