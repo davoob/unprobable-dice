@@ -131,16 +131,20 @@ def analyse_distribution(values, probabilities, test_difficulties=None):
         variance += (value - expected_value)**2 * probability
 
     other = {}
-    if test_difficulties is not None:
-        if type(test_difficulties) is not list:
-            test_difficulties = [test_difficulties]
 
-        test_difficulties_probabilities = [0]*len(test_difficulties)
-        for i, test_difficulty in enumerate(test_difficulties):
-            for j, value in enumerate(values):
-                if value >= test_difficulty:
-                    test_difficulties_probabilities[i] += probabilities[j]
-        other['test_difficulties_probabilities'] = test_difficulties_probabilities
+    if test_difficulties is None:
+        test_difficulties = list(range(int(min(values)), int(max(values)) + 3))
+    if type(test_difficulties) is not list:
+        test_difficulties = [test_difficulties]
+    test_difficulties_probabilities = [0]*len(test_difficulties)
+    for i, test_difficulty in enumerate(test_difficulties):
+        for j, value in enumerate(values):
+            if value >= test_difficulty:
+                test_difficulties_probabilities[i] += probabilities[j]
+    other['test_difficulties_probabilities'] = test_difficulties_probabilities
+
+    half_prob_value = np.interp(0.5, np.flip(np.asarray(test_difficulties_probabilities)), np.flip(np.asarray(test_difficulties)))
+    other['half_prob_value'] = half_prob_value
 
     return expected_value, variance, other
 
