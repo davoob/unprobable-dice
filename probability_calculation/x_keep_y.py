@@ -121,21 +121,44 @@ def get_prob_smaller_min_one_equal(dice_num, x, values, probs):
     return prob_min_one_is_equal
 
 
-values = np.array([-3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8]) + 4
-probs = [1/12]*12
+def analyse_distribution(values, probabilities, test_difficulties=None):
+    expected_value = 0
+    for value, probability in zip(values, probabilities):
+        expected_value += value * probability
 
-uneven_vals_probs = np.loadtxt('distribution.txt')
-uneven_values = uneven_vals_probs[:, 0]
-uneven_probs = uneven_vals_probs[:, 1]
-print(uneven_values, uneven_probs)
+    variance = 0
+    for value, probability in zip(values, probabilities):
+        variance += (value - expected_value)**2 * probability
 
-probabilities = n_keep_k_highest(3, 1, uneven_values, uneven_probs)
+    other = {}
+    if test_difficulties is not None:
+        if type(test_difficulties) is not list:
+            test_difficulties = [test_difficulties]
 
-mean = 0
-for sum, prob in probabilities.items():
-    mean += sum * prob
-print(np.sum(list(probabilities.values())), mean, probabilities)
+        test_difficulties_probabilities = [0]*len(test_difficulties)
+        for i, test_difficulty in enumerate(test_difficulties):
+            for j, value in enumerate(values):
+                if value >= test_difficulty:
+                    test_difficulties_probabilities[i] += probabilities[j]
+        other['test_difficulties_probabilities'] = test_difficulties_probabilities
 
-plt.plot(probabilities.keys(), probabilities.values())
-plt.show()
+    return expected_value, variance, other
+
+
+if __name__ == '__main__':
+    values = np.array([-3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8]) + 4
+    probs = [1/12]*12
+
+    uneven_vals_probs = np.loadtxt('distribution.txt')
+    uneven_values = uneven_vals_probs[:, 0]
+    uneven_probs = uneven_vals_probs[:, 1]
+    print(uneven_values, uneven_probs)
+
+    probabilities = n_keep_k_highest(3, 1, uneven_values, uneven_probs)
+
+    expect, var, diff_probs = analyse_distribution(list(probabilities.keys()), list(probabilities.values()), test_difficulties=[0, 2, 4, 6, 8, 10, 14, 18, 22, 26, 30])
+    print(expect, var, diff_probs)
+
+    plt.plot(probabilities.keys(), probabilities.values())
+    plt.show()
 
