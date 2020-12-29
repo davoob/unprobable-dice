@@ -41,6 +41,8 @@ def n_keep_k_highest(n, k, values, probs):
     values = np.asarray(values)
     probs = np.asarray(probs)
     result = {}
+    crit_prob = 0
+    botch_prob = 0
     value_num = len(values)
     # sum_combination_perms = list(itertools.product(range(value_num), repeat=k))
     sum_combination_perms = list(itertools.combinations_with_replacement(range(value_num), k))
@@ -51,8 +53,11 @@ def n_keep_k_highest(n, k, values, probs):
         cur_sum = 0
         cur_prob = 1
         num_each_value = {}
+        is_crit = False
+        # is_botch = False
         for i in perm:
             cur_sum += values[i]
+
             if values[i] == min_value:
                 num_dice_equals_min += 1
             else:
@@ -62,8 +67,17 @@ def n_keep_k_highest(n, k, values, probs):
                 else:
                     num_each_value[values[i]] = 1
 
-        prob_rest_dice = get_prob_smaller_than(n-k+num_dice_equals_min, values[min(perm)], values, probs, num_equal_dice=num_dice_equals_min)
-        num_poss_keep_dice = 1  # scipy.special.binom(n, k-num_dice_equals_min)
+            if values[i] == np.max(values):
+                is_crit = True
+            # if values[i] <= np.min(values):
+            #     is_botch = True
+        # if is_crit and is_botch:
+        #     is_crit = False
+        #     is_botch = False
+
+        prob_rest_dice = get_prob_smaller_than(n-k+num_dice_equals_min, values[min(perm)], values, probs,
+                                               num_equal_dice=num_dice_equals_min)
+        num_poss_keep_dice = 1
         drawn = 0
         for value in num_each_value.keys():
             num_poss_keep_dice *= scipy.special.binom(n - drawn, num_each_value[value])
@@ -76,7 +90,14 @@ def n_keep_k_highest(n, k, values, probs):
         else:
             result[cur_sum] = total_prob
 
-    return result
+        if is_crit:
+            crit_prob += total_prob
+        # if is_botch:
+        #     botch_prob += total_prob
+
+    botch_prob = get_prob_smaller_than(int(n/2)+1, 0, values, probs, also_equals=False)
+    info = {'crit_prob': crit_prob, 'botch_prob': botch_prob}
+    return result, info
 
 
 def get_prob_smaller_than(dice_num, value, values, probs, also_equals=True, num_equal_dice=0):
@@ -101,24 +122,6 @@ def get_prob_smaller_than(dice_num, value, values, probs, also_equals=True, num_
             # print(dice_num, i, prob_all_lower_except_i, prob_n_i_lower, prob_i_equals, num_poss_i_equals)
 
     return prob_all_lower
-
-
-def get_prob_smaller_min_one_equal(dice_num, x, values, probs):
-    values = np.asarray(values)
-    probs = np.asarray(probs)
-    value_idx = np.where(values == x)[0][0]
-
-    prob_all_smaller = get_prob_smaller_than(dice_num, x, values, probs, also_equals=True)
-
-    # transform probs into world with no value higher than x
-    values_x = values[:x+1]
-    probs_x = probs[:x+1]
-    probs_x = probs_x / np.sum(probs_x)
-
-    prob_die_is_smaller = np.sum(probs[:-1])
-    prob_min_one_is_equal = 1 - (prob_die_is_smaller ** dice_num)
-
-    return prob_min_one_is_equal
 
 
 def analyse_distribution(values, probabilities, test_difficulties=None):
@@ -158,7 +161,7 @@ if __name__ == '__main__':
     uneven_probs = uneven_vals_probs[:, 1]
     print(uneven_values, uneven_probs)
 
-    probabilities = n_keep_k_highest(3, 1, uneven_values, uneven_probs)
+    probabilities, info = n_keep_k_highest(3, 1, uneven_values, uneven_probs)
 
     expect, var, diff_probs = analyse_distribution(list(probabilities.keys()), list(probabilities.values()), test_difficulties=[0, 2, 4, 6, 8, 10, 14, 18, 22, 26, 30])
     print(expect, var, diff_probs)
