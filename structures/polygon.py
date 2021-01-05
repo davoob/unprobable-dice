@@ -704,6 +704,19 @@ class Polygon:
         with open(file_name, 'wb') as file:
             pickle.dump(self, file, pickle.HIGHEST_PROTOCOL)
 
+    def save_obj(self, file_name='polygon'):
+        mesh = o3d.geometry.TriangleMesh()
+        mesh.vertices = self.get_vertices()
+        mesh.triangles = self.get_triangles()
+
+        mesh.compute_vertex_normals()
+        mesh.compute_triangle_normals()
+        mesh.compute_convex_hull()
+        mesh.paint_uniform_color([1, 0.706, 0])
+
+        full_save_name = file_name + '.obj'
+        o3d.io.write_triangle_mesh(full_save_name, mesh)
+
 
 if __name__ == '__main__':
     # print("Load a ply point cloud, print it, and render it")
@@ -729,7 +742,9 @@ if __name__ == '__main__':
     # print(np.asarray(mesh.triangle_normals))
     # o3d.visualization.draw_geometries([mesh])
 
-    # dodeca = create_dodecahedron()
+    dodeca = create_dodecahedron()
+    dodeca.align_normal_to_vector(0, [0, 0, 1])
+    dodeca.show(save=True, save_format="obj")
     # dodeca.extend_side(0, 0.5)
     # dodeca.extend_side(1, 0.5)
     # dodeca.show()
@@ -760,7 +775,7 @@ if __name__ == '__main__':
 
     # dodeca.show()
 
-    cube = create_cube()
-    cube.align_normal_to_vector(0, [0, 1, 1])
-    print(cube.face_normals)
-    cube.show()
+    # cube = create_cube()
+    # cube.align_normal_to_vector(0, [0, 1, 1])
+    # print(cube.face_normals)
+    # cube.show()
