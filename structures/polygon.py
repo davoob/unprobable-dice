@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import pychrono.core as chrono
 import pyquaternion as quat
 
+o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Error)
 float_precision = 6
 
 
@@ -716,6 +717,7 @@ class Polygon:
 
         full_save_name = file_name + '.obj'
         o3d.io.write_triangle_mesh(full_save_name, mesh)
+
 
 
 if __name__ == '__main__':
