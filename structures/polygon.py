@@ -39,6 +39,13 @@ def create_dodecahedron():
     return dodecahedron
 
 
+def create_uneven_dodecahedron(params):
+    dodecahedron = create_dodecahedron()
+    for idx, param in enumerate(params):
+        dodecahedron.extend_side(idx, param)
+    return dodecahedron
+
+
 def create_cube():
     cube_points = [[1, 1, 1], [1, -1, 1], [-1, -1, 1], [-1, 1, 1], [1, 1, -1], [1, -1, -1], [-1, -1, -1], [-1, 1, -1]]
     cube_faces = [[3, 2, 1, 0], [1, 5, 4, 0], [0, 4, 7, 3], [4, 5, 6, 7], [3, 7, 6, 2], [2, 6, 5, 1]]

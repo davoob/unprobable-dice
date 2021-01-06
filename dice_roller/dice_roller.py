@@ -125,17 +125,21 @@ class DiceRoller:
         self.end_vel, self.end_ang = bt.getBaseVelocity(self.die_id, self.physics_client_id)
         bt.disconnect(self.physics_client_id)
 
-    def run_multible(self, num=100):
+    def run_multible(self, num=100, debug=False):
         rolled_results = {}
-        progress_bar(0, num)
+        if debug:
+            progress_bar(0, num)
         for run_num in range(num):
             self.run(visible=False)
+
             up_face_idx = self.find_up_face_idx()
             if up_face_idx in rolled_results.keys():
                 rolled_results[up_face_idx] += 1
             else:
                 rolled_results[up_face_idx] = 1
-            progress_bar(run_num+1, num)
+
+            if debug and (run_num+1 % int(num/100) == 0):
+                progress_bar(run_num+1, num)
 
         return rolled_results
 

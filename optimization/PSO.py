@@ -129,6 +129,17 @@ class ParticleSwarmOptimization:
         for worker in self.workers:
             worker.join()
 
+    def plot_result(self):
+        gens = np.linspace(0, self.max_gen - 1, self.max_gen)
+        for i in range(self.num_particles):
+            particle_best = self.particles_best[:, i]
+            plt.plot(gens, particle_best)
+        plt.plot(gens, self.global_best)
+        plt.show()
+
+    def get_best_params(self):
+        return self.global_best_position[-1, :]
+
 
 def queue_worker(worker_id, queue_in, queue_out):
     # Read from the queue; this will be spawned as a separate Process
