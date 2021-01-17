@@ -7,6 +7,7 @@ from time import sleep
 from scipy.stats import norm
 import matplotlib.pyplot as plt
 from structures.polygon import create_dodecahedron
+import time
 
 
 class ParticleSwarmOptimization:
@@ -56,38 +57,29 @@ class ParticleSwarmOptimization:
         self.queue_out = Queue()
 
         self.workers = []
-        for worker_id in range(num_worker):
-            worker = Process(target=queue_worker, args=(worker_id, self.queue_in, self.queue_out))
-            self.workers.append(worker)
+        if num_worker == 1:
+            self.multiprocessing = False
+        else:
+            self.multiprocessing = True
+            for worker_id in range(num_worker):
+                worker = Process(target=queue_worker, args=(worker_id, self.queue_in, self.queue_out))
+                self.workers.append(worker)
+
+        # time keeping
+        self.start_time = 0
 
     def start(self):
-        for worker in self.workers:
-            worker.start()
+        self.start_time = time.time()
+
+        if self.multiprocessing:
+            self.connect_workers()
 
         for gen in range(self.max_gen):
-            # queue jobs for positions of current generation
-            worked_particles = 0
-            for i in range(self.num_particles):
-                if not self.particles_in_bounds[i]:
-                    worked_particles += 1
-                else:
-                    self.queue_in.put([i, gauss_dodecahedron, self.particles_position[gen, i, :].tolist()])
-
-            # work off all jobs
-            break_counter = 0
-            while not worked_particles == self.num_particles:
-                if not self.queue_out.empty():
-                    result = self.queue_out.get()
-                    idx = result[0]
-                    fitness = result[1]
-                    self.particles_fitness[gen, idx] = fitness
-                    worked_particles += 1
-                else:
-                    sleep(0.5)
-                    break_counter += 1
-                    if break_counter > 1000:
-                        break
-                progress_bar(worked_particles + gen*self.num_particles, self.num_particles*self.max_gen, gen+1, self.global_best[gen-1])
+            if self.multiprocessing:
+                self.run_workers(gen)
+            else:
+                for i in range(self.num_particles):
+                    self.particles_fitness[gen, i] = self.fit_func(self.particles_position[gen, i, :].tolist())
 
             # record personal and global bests
             for particle_idx in range(self.num_particles):
@@ -124,6 +116,40 @@ class ParticleSwarmOptimization:
         print('\n')
         print(self.global_best[-1])
 
+        if self.multiprocessing:
+            self.disconnect_workers()
+
+    def connect_workers(self):
+        for worker in self.workers:
+            worker.start()
+
+    def run_workers(self, gen):
+        # queue jobs for positions of current generation
+        worked_particles = 0
+        for i in range(self.num_particles):
+            if not self.particles_in_bounds[i]:
+                worked_particles += 1
+            else:
+                self.queue_in.put([i, self.fit_func, self.particles_position[gen, i, :].tolist()])
+
+        # work off all jobs
+        break_counter = 0
+        while not worked_particles == self.num_particles:
+            if not self.queue_out.empty():
+                result = self.queue_out.get()
+                idx = result[0]
+                fitness = result[1]
+                self.particles_fitness[gen, idx] = fitness
+                worked_particles += 1
+            else:
+                sleep(0.5)
+                break_counter += 1
+                if break_counter > 1000:
+                    break
+            elapsed_time = time.time() - self.start_time
+            progress_bar(worked_particles + gen*self.num_particles, self.num_particles*self.max_gen, gen+1, self.global_best[gen-1], elapsed_time)
+
+    def disconnect_workers(self):
         for _ in self.workers:
             self.queue_in.put('STOP')
         for worker in self.workers:
@@ -190,12 +216,19 @@ def gauss_dodecahedron(params):
     return (max_deviation - squared_deviation) / max_deviation
 
 
-def progress_bar(current, total, generation, global_best, bar_length=50):
+def progress_bar(current, total, generation, global_best, elapsed_time, bar_length=50):
     percent = float(current) * 100 / total
+    elapsed_time /= 60  # convert in minutes
+    if percent == 0:
+        estimated_total_time = -1
+    else:
+        estimated_total_time = 100/percent * elapsed_time
+    remaining_time = (100-percent)/100 * estimated_total_time
+
     arrow = '-' * int(percent/100 * bar_length - 1) + '>'
     spaces = ' ' * (bar_length - len(arrow))
 
-    sys.stdout.write('\r' + 'Progress: [%s%s] %3.2f %%; generation: %d; global best: %1.3f' % (arrow, spaces, percent, generation, global_best))
+    sys.stdout.write('\r' + 'Progress: [%s%s] %3.2f %%; generation: %d; global best: %1.3f; elapsed time: %5.2f minutes; remaining time: %5.2f minutes' % (arrow, spaces, percent, generation, global_best, elapsed_time, remaining_time))
 
 
 if __name__ == '__main__':

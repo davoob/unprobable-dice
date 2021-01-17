@@ -242,10 +242,14 @@ class Polygon:
         vector = np.asarray(vector)
         vector = vector / np.linalg.norm(vector)
 
-        rot_vector = np.cross(normal, vector)
-        rot_vector = rot_vector / np.linalg.norm(rot_vector)
+        if (np.abs(vector) == np.abs(normal)).all():
+            angle = 0
+            rot_vector = normal
+        else:
+            rot_vector = np.cross(normal, vector)
+            rot_vector = rot_vector / np.linalg.norm(rot_vector)
 
-        angle = np.arccos(np.dot(normal, vector))
+            angle = np.arccos(np.dot(normal, vector))
 
         if only_info:
             return angle, rot_vector
@@ -719,7 +723,7 @@ class Polygon:
 
         mesh.compute_vertex_normals()
         mesh.compute_triangle_normals()
-        mesh.compute_convex_hull()
+        # mesh.compute_convex_hull()
         mesh.paint_uniform_color([1, 0.706, 0])
 
         full_save_name = file_name + '.obj'
