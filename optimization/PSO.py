@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 from threading import Thread
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Pool
 from time import sleep
 from scipy.stats import norm
 import matplotlib.pyplot as plt
@@ -12,7 +12,7 @@ import pickle
 
 
 def load_pso(file_name, **kwargs):
-    saved_data = pickle.load(open(file_name + '.pickle', 'wb'))
+    saved_data = pickle.load(open(file_name + '.pickle', 'rb'))
     init_params = saved_data[0]
 
     init_params[3] = kwargs.pop('max_gen', init_params[3])
@@ -142,20 +142,25 @@ class ParticleSwarmOptimization:
                         self.particles_in_bounds[particle_idx] = False
 
             # visualize progress
-            visualizing = Thread(target=self.visualize_result(), args=(), kwargs={})
-            visualizing.start()
+            # visualizing = Thread(target=self.visualize_result, args=(), kwargs={})
+            # visualizing.start()
+            # visualizing = Pool(processes=1)
+            # visualizing.apply_async(self.visualize_result)
 
             # test if run exceeds maximum duration
             if self.max_duration is not None:
                 if time.time() - self.start_time > self.max_duration * 60:
+                    print('\n')
                     self.save_state(gen, self.save_name)
                     break
 
         print('\n')
-        print(self.global_best[-1])
+        print(self.global_best[gen])
 
         if self.multiprocessing:
             self.disconnect_workers()
+
+        self.visualize_result()
 
     def connect_workers(self):
         for worker in self.workers:
@@ -214,12 +219,11 @@ class ParticleSwarmOptimization:
         save_data = [init_params, cur_gen, self.particles_position, self.particles_velocity, self.particles_fitness,
                      self.particles_best, self.particles_best_position, self.global_best, self.global_best_position]
 
-        pickle.dump(save_data, open(time_stamp + '_' + save_name + '.pickle', 'wb'))
+        pickle.dump(save_data, open(save_name + '.pickle', 'wb'))
         print("state saved")
 
     def visualize_result(self):
-        result_plotting = Thread(target=self.plot_result(), args=(), kwargs={})
-        result_plotting.start()
+        self.plot_result()
 
         if self.visualization_func is None:
             print('no visualization function')

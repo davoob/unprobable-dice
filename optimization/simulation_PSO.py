@@ -1,6 +1,6 @@
 from structures.polygon import create_uneven_dodecahedron
 from dice_roller.dice_roller import DiceRoller
-from optimization.PSO import ParticleSwarmOptimization
+from optimization.PSO import ParticleSwarmOptimization, load_pso
 from probability_calculation.distribution_generation import generate_gaussian_distribution
 import numpy as np
 import matplotlib.pyplot as plt
@@ -55,7 +55,7 @@ def get_distribution_from_occurances(occurances_dict: dict, fixed_values=None):
     return sorted_vals, sorted_probs
 
 
-def run_simulation(die, num_sims=500, debug=False):
+def run_simulation(die, num_sims=100, debug=False):
     roller = DiceRoller(die, time_step=1./20.)
     result = roller.run_multible(num_sims, debug=debug)
     if debug:
@@ -78,7 +78,7 @@ def simulate_die(params):
     return (max_deviation - squared_deviation) / max_deviation
 
 
-def result_visualization(die, num_sims=500):
+def result_visualization(die, num_sims=100):
     die_distribution = run_simulation(die, num_sims=num_sims, debug=False)
     plt.plot(values, die_distribution)
     plt.plot(values, gaussian_distribution)
@@ -86,8 +86,11 @@ def result_visualization(die, num_sims=500):
 
 
 if __name__ == '__main__':
-    PSO = ParticleSwarmOptimization(simulate_die, 12, 50, solution_space_limits=[[-0.5, 0.5]]*12, max_gen=100,
-                                    num_worker=10, visualization_func=result_visualization, max_duration=2)
+    PSO = ParticleSwarmOptimization(simulate_die, 12, 10, solution_space_limits=[[-0.5, 0.5]]*12, max_gen=100,
+                                    num_worker=10, visualization_func=result_visualization, max_duration=1)
+    PSO.start()
+
+    PSO = load_pso('pso_save')
     PSO.start()
 
     # PSO.plot_result()
