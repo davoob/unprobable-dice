@@ -2,6 +2,10 @@ import numpy as np
 import scipy.special
 import itertools
 import matplotlib.pyplot as plt
+from probability_calculation.distribution_generation import analyse_distribution,\
+                                                            find_gaussian_params,\
+                                                            generate_gaussian_distribution
+
 
 class Roll:
     def __init__(self, dice):
@@ -54,7 +58,7 @@ def n_keep_k_highest(n, k, values, probs):
         cur_prob = 1
         num_each_value = {}
         is_crit = False
-        # is_botch = False
+        is_botch = False
         for i in perm:
             cur_sum += values[i]
 
@@ -69,11 +73,11 @@ def n_keep_k_highest(n, k, values, probs):
 
             if values[i] == np.max(values):
                 is_crit = True
-            # if values[i] <= np.min(values):
-            #     is_botch = True
-        # if is_crit and is_botch:
-        #     is_crit = False
-        #     is_botch = False
+            if values[i] == np.min(values):
+                is_botch = True
+        if is_crit and is_botch:
+            is_crit = True
+            is_botch = False
 
         prob_rest_dice = get_prob_smaller_than(n-k+num_dice_equals_min, values[min(perm)], values, probs,
                                                num_equal_dice=num_dice_equals_min)
@@ -92,10 +96,10 @@ def n_keep_k_highest(n, k, values, probs):
 
         if is_crit:
             crit_prob += total_prob
-        # if is_botch:
-        #     botch_prob += total_prob
+        if is_botch:
+            botch_prob += total_prob
 
-    botch_prob = get_prob_smaller_than(int(n/2)+1, 0, values, probs, also_equals=False)
+    # botch_prob = get_prob_smaller_than(int(n/2)+1, 0, values, probs, also_equals=False)
     info = {'crit_prob': crit_prob, 'botch_prob': botch_prob}
     return result, info
 
@@ -124,42 +128,18 @@ def get_prob_smaller_than(dice_num, value, values, probs, also_equals=True, num_
     return prob_all_lower
 
 
-def analyse_distribution(values, probabilities, test_difficulties=None):
-    expected_value = 0
-    for value, probability in zip(values, probabilities):
-        expected_value += value * probability
-
-    variance = 0
-    for value, probability in zip(values, probabilities):
-        variance += (value - expected_value)**2 * probability
-
-    other = {}
-
-    if test_difficulties is None:
-        test_difficulties = list(range(int(min(values)), int(max(values)) + 3))
-    if type(test_difficulties) is not list:
-        test_difficulties = [test_difficulties]
-    test_difficulties_probabilities = [0]*len(test_difficulties)
-    for i, test_difficulty in enumerate(test_difficulties):
-        for j, value in enumerate(values):
-            if value >= test_difficulty:
-                test_difficulties_probabilities[i] += probabilities[j]
-    other['test_difficulties_probabilities'] = test_difficulties_probabilities
-
-    half_prob_value = np.interp(0.5, np.flip(np.asarray(test_difficulties_probabilities)), np.flip(np.asarray(test_difficulties)))
-    other['half_prob_value'] = half_prob_value
-
-    return expected_value, variance, other
-
-
 if __name__ == '__main__':
-    values = np.array([-3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8]) + 4
+    values = np.array([-3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8]) + 2
     probs = [1/12]*12
 
-    uneven_vals_probs = np.loadtxt('distribution.txt')
-    uneven_values = uneven_vals_probs[:, 0]
-    uneven_probs = uneven_vals_probs[:, 1]
-    print(uneven_values, uneven_probs)
+    # uneven_vals_probs = np.loadtxt('distribution.txt')
+    # uneven_values = uneven_vals_probs[:, 0]
+    # uneven_probs = uneven_vals_probs[:, 1]
+    # print(uneven_values, uneven_probs)
+
+    uneven_values = values
+    gauss_params = find_gaussian_params(values=uneven_values, expected_value=2.0, variance=4)
+    _, uneven_probs = generate_gaussian_distribution(center=gauss_params[0], width=gauss_params[1], values=uneven_values)
 
     probabilities, info = n_keep_k_highest(3, 1, uneven_values, uneven_probs)
 

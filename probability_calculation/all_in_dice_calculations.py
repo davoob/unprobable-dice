@@ -1,13 +1,19 @@
 import matplotlib.pyplot as plt
-from probability_calculation.x_keep_y import n_keep_k_highest, analyse_distribution
+from probability_calculation.x_keep_y import n_keep_k_highest
+from probability_calculation.distribution_generation import find_gaussian_params, generate_gaussian_distribution, analyse_distribution
 import numpy as np
 
 prop_cycle = plt.rcParams['axes.prop_cycle']
 colors = prop_cycle.by_key()['color']
 
-uneven_vals_probs = np.loadtxt('distribution.txt')
-values = uneven_vals_probs[:, 0] - 4
-probs = uneven_vals_probs[:, 1]
+# uneven_vals_probs = np.loadtxt('distribution.txt')
+# values = uneven_vals_probs[:, 0] - 4
+# probs = uneven_vals_probs[:, 1]
+
+values = np.array([-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+gauss_params = find_gaussian_params(values=values, expected_value=2.5, variance=4)
+_, probs = generate_gaussian_distribution(center=gauss_params[0], width=gauss_params[1], values=values)
+
 # plt.plot(values, probs)
 # plt.show()
 
@@ -63,6 +69,6 @@ plt.show()
 for i, cur_crit_chances in enumerate(crit_chances):
     plt.plot(nums_extra_dice, cur_crit_chances, label=str(nums_base_dice[i]), color=colors[i])
 for i, cur_botch_chances in enumerate(botch_chances):
-    plt.plot(nums_extra_dice, cur_botch_chances, label=str(nums_base_dice[i]), color=colors[i])
+    plt.plot(nums_extra_dice, cur_botch_chances, '--', label=str(nums_base_dice[i]), color=colors[i])
 plt.legend()
 plt.show()

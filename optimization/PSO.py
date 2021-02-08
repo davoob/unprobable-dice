@@ -1,26 +1,53 @@
 import sys
 import numpy as np
-# from threading import Event, Thread, Lock
+from threading import Thread
 from multiprocessing import Process, Queue
-# from queue import Queue
 from time import sleep
 from scipy.stats import norm
 import matplotlib.pyplot as plt
-from structures.polygon import create_dodecahedron
+from structures.polygon import create_dodecahedron, create_uneven_dodecahedron
 import time
+from datetime import datetime
+import pickle
+
+
+def load_pso(file_name, **kwargs):
+    saved_data = pickle.load(open(file_name + '.pickle', 'wb'))
+    init_params = saved_data[0]
+
+    init_params[3] = kwargs.pop('max_gen', init_params[3])
+    init_params[5] = kwargs.pop('end_time', init_params[5])
+    init_params[6] = kwargs.pop('num_worker', init_params[6])
+
+    optimizer = ParticleSwarmOptimization(*init_params)
+    cur_gen = saved_data[1]
+    optimizer.start_gen = cur_gen + 1
+    optimizer.particles_position[:cur_gen, :, :] = saved_data[2][:cur_gen, :, :]
+    optimizer.particles_velocity[:cur_gen, :, :] = saved_data[3][:cur_gen, :, :]
+    optimizer.particles_fitness[:cur_gen, :] = saved_data[4][:cur_gen, :]
+    optimizer.particles_best[:cur_gen, :] = saved_data[5][:cur_gen, :]
+    optimizer.particles_best_position[:cur_gen, :, :] = saved_data[6][:cur_gen, :, :]
+    optimizer.global_best[:cur_gen] = saved_data[7][:cur_gen]
+    optimizer.global_best_position[:cur_gen, :] = saved_data[8][:cur_gen, :]
+
+    return optimizer
 
 
 class ParticleSwarmOptimization:
-    def __init__(self, fit_func, num_dim, num_particles, max_gen=50, solution_space_limits=None,
-                 starting_range_position=None, starting_range_velocity=None, num_worker=5,
-                 w=0.729, c1=2.0412, c2=0.9477, time_step=1):
+    def __init__(self, fit_func, num_dim, num_particles, max_gen=50, start_gen=0, max_duration=None, num_worker=5,
+                 solution_space_limits=None, starting_range_position=None, starting_range_velocity=None,
+                 w=0.729, c1=2.0412, c2=0.9477, time_step=1, visualization_func=None, save_name='pso_save'):
         self.fit_func = fit_func
         self.num_dim = num_dim
         self.num_particles = num_particles
         self.max_gen = max_gen
+        self.start_gen = start_gen
+        self.max_duration = max_duration
         if solution_space_limits is None:
             solution_space_limits = [[0, 1]] * num_dim
         self.solution_space_limits = np.asarray(solution_space_limits)
+        self.visualization_func = visualization_func
+        self.save_name = save_name
 
         # weights
         self.w = w
@@ -42,21 +69,22 @@ class ParticleSwarmOptimization:
             starting_range_position = solution_space_limits
         if starting_range_velocity is None:
             starting_range_velocity = solution_space_limits
-        starting_range_position = np.asarray(starting_range_position)
-        starting_range_velocity = np.asarray(starting_range_velocity)
+        self.starting_range_position = np.asarray(starting_range_position)
+        self.starting_range_velocity = np.asarray(starting_range_velocity)
 
         self.particles_position[0, :, :] = np.random.rand(num_particles, num_dim) * \
-                                           (starting_range_position[:, 1] - starting_range_position[:, 0]) + \
-                                           (starting_range_position[:, 0])
+                                           (self.starting_range_position[:, 1] - self.starting_range_position[:, 0]) + \
+                                           (self.starting_range_position[:, 0])
         self.particles_velocity[0, :, :] = np.random.rand(num_particles, num_dim) * \
-                                           (starting_range_velocity[:, 1] - starting_range_velocity[:, 0]) + \
-                                           (starting_range_velocity[:, 0])
+                                           (self.starting_range_velocity[:, 1] - self.starting_range_velocity[:, 0]) + \
+                                           (self.starting_range_velocity[:, 0])
         self.particles_in_bounds = [True]*num_particles
 
         self.queue_in = Queue()
         self.queue_out = Queue()
 
         self.workers = []
+        self.num_worker = num_worker
         if num_worker == 1:
             self.multiprocessing = False
         else:
@@ -74,7 +102,7 @@ class ParticleSwarmOptimization:
         if self.multiprocessing:
             self.connect_workers()
 
-        for gen in range(self.max_gen):
+        for gen in range(self.start_gen, self.max_gen):
             if self.multiprocessing:
                 self.run_workers(gen)
             else:
@@ -112,6 +140,16 @@ class ParticleSwarmOptimization:
                     in_bounds = self.solution_space_limits[dim][0] <= new_pos[dim] <= self.solution_space_limits[dim][1]
                     if not in_bounds:
                         self.particles_in_bounds[particle_idx] = False
+
+            # visualize progress
+            visualizing = Thread(target=self.visualize_result(), args=(), kwargs={})
+            visualizing.start()
+
+            # test if run exceeds maximum duration
+            if self.max_duration is not None:
+                if time.time() - self.start_time > self.max_duration * 60:
+                    self.save_state(gen, self.save_name)
+                    break
 
         print('\n')
         print(self.global_best[-1])
@@ -165,6 +203,31 @@ class ParticleSwarmOptimization:
 
     def get_best_params(self):
         return self.global_best_position[-1, :]
+
+    def save_state(self, cur_gen, save_name):
+        date_time_now = datetime.now()
+        time_stamp = date_time_now.strftime("%y%m%d_%H%M%S")
+
+        init_params = [self.fit_func, self.num_dim, self.num_particles, self.max_gen, self.solution_space_limits,
+                       self.starting_range_position, self.starting_range_velocity, self.num_worker,
+                       self.w, self.c1, self.c2, self.time_step]
+        save_data = [init_params, cur_gen, self.particles_position, self.particles_velocity, self.particles_fitness,
+                     self.particles_best, self.particles_best_position, self.global_best, self.global_best_position]
+
+        pickle.dump(save_data, open(time_stamp + '_' + save_name + '.pickle', 'wb'))
+        print("state saved")
+
+    def visualize_result(self):
+        result_plotting = Thread(target=self.plot_result(), args=(), kwargs={})
+        result_plotting.start()
+
+        if self.visualization_func is None:
+            print('no visualization function')
+            return
+
+        best_result = self.get_best_params()
+        result_die = create_uneven_dodecahedron(best_result)
+        self.visualization_func(result_die)
 
 
 def queue_worker(worker_id, queue_in, queue_out):

@@ -1,17 +1,9 @@
 from structures.polygon import create_uneven_dodecahedron
 from dice_roller.dice_roller import DiceRoller
 from optimization.PSO import ParticleSwarmOptimization
+from probability_calculation.distribution_generation import generate_gaussian_distribution
 import numpy as np
-from scipy.stats import norm
 import matplotlib.pyplot as plt
-
-
-def generate_gaussian_distribution(center=6.5, width=3):
-    x = np.linspace(1, 12, 12)
-    y = norm.pdf(x, center, width)
-    y /= np.sum(y)
-
-    return x, y
 
 
 def calculate_max_deviation(distribution, weighting=None, asymmetry_penalty=1):
@@ -86,23 +78,30 @@ def simulate_die(params):
     return (max_deviation - squared_deviation) / max_deviation
 
 
-if __name__ == '__main__':
-    PSO = ParticleSwarmOptimization(simulate_die, 12, 50, solution_space_limits=[[-0.5, 0.5]]*12, max_gen=100,
-                                    num_worker=10)
-    PSO.start()
-
-    PSO.plot_result()
-    best_params = PSO.get_best_params()
-    best_die = create_uneven_dodecahedron(best_params)
-    best_die.show()
-
-    best_die_distribution = run_simulation(best_die, num_sims=1000, debug=True)
-
-    plt.plot(values, best_die_distribution)
+def result_visualization(die, num_sims=500):
+    die_distribution = run_simulation(die, num_sims=num_sims, debug=False)
+    plt.plot(values, die_distribution)
     plt.plot(values, gaussian_distribution)
     plt.show()
 
-    np.savetxt('distribution.txt', np.vstack((values, best_die_distribution, gaussian_distribution)).T,
-               header='value probability target_probability')
-    best_die.show(show_markings=True, save=True, save_name='bell_dodeka', save_format='obj')
-    best_die.save('sim_optimized_dodeca.pickle')
+
+if __name__ == '__main__':
+    PSO = ParticleSwarmOptimization(simulate_die, 12, 50, solution_space_limits=[[-0.5, 0.5]]*12, max_gen=100,
+                                    num_worker=10, visualization_func=result_visualization, max_duration=2)
+    PSO.start()
+
+    # PSO.plot_result()
+    # best_params = PSO.get_best_params()
+    # best_die = create_uneven_dodecahedron(best_params)
+    # best_die.show()
+    #
+    # best_die_distribution = run_simulation(best_die, num_sims=1000, debug=True)
+    #
+    # plt.plot(values, best_die_distribution)
+    # plt.plot(values, gaussian_distribution)
+    # plt.show()
+    #
+    # np.savetxt('distribution.txt', np.vstack((values, best_die_distribution, gaussian_distribution)).T,
+    #            header='value probability target_probability')
+    # best_die.show(show_markings=True, save=True, save_name='bell_doeka', save_format='obj')
+    # best_die.save('sim_optimized_dodca.pickle')
