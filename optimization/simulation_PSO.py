@@ -55,7 +55,7 @@ def get_distribution_from_occurances(occurances_dict: dict, fixed_values=None):
     return sorted_vals, sorted_probs
 
 
-def run_simulation(die, num_sims=100, debug=False):
+def run_simulation(die, num_sims=1000, debug=False):
     roller = DiceRoller(die, time_step=1./20.)
     result = roller.run_multible(num_sims, debug=debug)
     if debug:
@@ -78,20 +78,20 @@ def simulate_die(params):
     return (max_deviation - squared_deviation) / max_deviation
 
 
-def result_visualization(die, num_sims=100):
-    die_distribution = run_simulation(die, num_sims=num_sims, debug=False)
+def result_visualization(die, num_sims=1000):
+    die_distribution = run_simulation(die, num_sims=num_sims, debug=True)
     plt.plot(values, die_distribution)
     plt.plot(values, gaussian_distribution)
     plt.show()
 
 
 if __name__ == '__main__':
-    PSO = ParticleSwarmOptimization(simulate_die, 12, 10, solution_space_limits=[[-0.5, 0.5]]*12, max_gen=100,
-                                    num_worker=10, visualization_func=result_visualization, max_duration=1)
+    PSO = ParticleSwarmOptimization(simulate_die, 12, 30, solution_space_limits=[[-0.5, 0.5]]*12, max_gen=1000,
+                                    num_worker=10, visualization_func=result_visualization, max_duration=100)
     PSO.start()
 
-    PSO = load_pso('pso_save')
-    PSO.start()
+    # PSO = load_pso('pso_save', max_duration=100)
+    # PSO.start()
 
     # PSO.plot_result()
     # best_params = PSO.get_best_params()

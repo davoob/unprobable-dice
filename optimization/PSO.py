@@ -16,19 +16,20 @@ def load_pso(file_name, **kwargs):
     init_params = saved_data[0]
 
     init_params[3] = kwargs.pop('max_gen', init_params[3])
-    init_params[5] = kwargs.pop('end_time', init_params[5])
+    init_params[5] = kwargs.pop('max_duration', init_params[5])
     init_params[6] = kwargs.pop('num_worker', init_params[6])
 
+    print(len(init_params))
     optimizer = ParticleSwarmOptimization(*init_params)
     cur_gen = saved_data[1]
     optimizer.start_gen = cur_gen + 1
-    optimizer.particles_position[:cur_gen, :, :] = saved_data[2][:cur_gen, :, :]
-    optimizer.particles_velocity[:cur_gen, :, :] = saved_data[3][:cur_gen, :, :]
-    optimizer.particles_fitness[:cur_gen, :] = saved_data[4][:cur_gen, :]
-    optimizer.particles_best[:cur_gen, :] = saved_data[5][:cur_gen, :]
-    optimizer.particles_best_position[:cur_gen, :, :] = saved_data[6][:cur_gen, :, :]
-    optimizer.global_best[:cur_gen] = saved_data[7][:cur_gen]
-    optimizer.global_best_position[:cur_gen, :] = saved_data[8][:cur_gen, :]
+    optimizer.particles_position[:cur_gen+2, :, :] = saved_data[2][:cur_gen+2, :, :]
+    optimizer.particles_velocity[:cur_gen+2, :, :] = saved_data[3][:cur_gen+2, :, :]
+    optimizer.particles_fitness[:cur_gen+1, :] = saved_data[4][:cur_gen+1, :]
+    optimizer.particles_best[:cur_gen+1, :] = saved_data[5][:cur_gen+1, :]
+    optimizer.particles_best_position[:cur_gen+1, :, :] = saved_data[6][:cur_gen+1, :, :]
+    optimizer.global_best[:cur_gen+1] = saved_data[7][:cur_gen+1]
+    optimizer.global_best_position[:cur_gen+1, :] = saved_data[8][:cur_gen+1, :]
 
     return optimizer
 
@@ -146,6 +147,7 @@ class ParticleSwarmOptimization:
             # visualizing.start()
             # visualizing = Pool(processes=1)
             # visualizing.apply_async(self.visualize_result)
+            # self.plot_result()
 
             # test if run exceeds maximum duration
             if self.max_duration is not None:
@@ -213,9 +215,10 @@ class ParticleSwarmOptimization:
         date_time_now = datetime.now()
         time_stamp = date_time_now.strftime("%y%m%d_%H%M%S")
 
-        init_params = [self.fit_func, self.num_dim, self.num_particles, self.max_gen, self.solution_space_limits,
-                       self.starting_range_position, self.starting_range_velocity, self.num_worker,
-                       self.w, self.c1, self.c2, self.time_step]
+        init_params = [self.fit_func, self.num_dim, self.num_particles, self.max_gen, self.start_gen, self.max_duration,
+                       self.num_worker, self.solution_space_limits, self.starting_range_position,
+                       self.starting_range_velocity, self.w, self.c1, self.c2, self.time_step, self.visualization_func,
+                       self.save_name]
         save_data = [init_params, cur_gen, self.particles_position, self.particles_velocity, self.particles_fitness,
                      self.particles_best, self.particles_best_position, self.global_best, self.global_best_position]
 
@@ -295,7 +298,7 @@ def progress_bar(current, total, generation, global_best, elapsed_time, bar_leng
     arrow = '-' * int(percent/100 * bar_length - 1) + '>'
     spaces = ' ' * (bar_length - len(arrow))
 
-    sys.stdout.write('\r' + 'Progress: [%s%s] %3.2f %%; generation: %d; global best: %1.3f; elapsed time: %5.2f minutes; remaining time: %5.2f minutes' % (arrow, spaces, percent, generation, global_best, elapsed_time, remaining_time))
+    sys.stdout.write('\r' + 'Progress: [%s%s] %3.2f %%; generation: %d; global best: %1.4f; elapsed time: %5.2f minutes; remaining time: %5.2f minutes' % (arrow, spaces, percent, generation, global_best, elapsed_time, remaining_time))
 
 
 if __name__ == '__main__':
