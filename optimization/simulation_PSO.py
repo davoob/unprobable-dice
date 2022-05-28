@@ -86,8 +86,8 @@ def result_visualization(die, num_sims=1000):
 
 
 if __name__ == '__main__':
-    PSO = ParticleSwarmOptimization(simulate_die, 12, 30, solution_space_limits=[[-0.5, 0.5]]*12, max_gen=1000,
-                                    num_worker=10, visualization_func=result_visualization, max_duration=100)
+    PSO = ParticleSwarmOptimization(simulate_die, 12, 33, solution_space_limits=[[-0.5, 0.5]]*12, max_gen=10000,
+                                    num_worker=11, visualization_func=result_visualization, max_duration=720)
     PSO.start()
 
     # PSO = load_pso('pso_save', max_duration=100)
